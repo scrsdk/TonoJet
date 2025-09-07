@@ -1,0 +1,42 @@
+{
+  "name": "aviator-game",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A beautiful mobile-first Aviator-style crash game built with React and TailwindCSS",
+  "main": "main.jsx",
+  "scripts": {
+    "dev": "vite",
+    "prebuild": "node scripts/update-version.js",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "crypto-js": "^4.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@mui/material": "^5.14.20",
+    "@pixi/react": "^7.1.1",
+    "@pixi/sound": "^5.2.2",
+    "pixi.js": "^7.3.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "autoprefixer": "^10.4.14",
+    "node-fetch": "^2.7.0",
+    "postcss": "^8.4.27",
+    "tailwindcss": "^3.3.3",
+    "vite": "^4.4.5"
+  },
+  "keywords": [
+    "aviator",
+    "crash-game",
+    "react",
+    "tailwindcss",
+    "casino",
+    "mobile-first"
+  ],
+  "author": "Latif Kasuli",
+  "license": "MIT"
+}

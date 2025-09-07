@@ -1,0 +1,440 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and profile
+model User {
+  id                String   @id @default(cuid())
+  telegramId        String?  @unique // Telegram user ID
+  username          String   @unique
+  email             String?  @unique
+  firstName         String?
+  lastName          String?
+  avatar            String?
+  
+  // Authentication
+  passwordHash      String?  // For non-Telegram users
+  role              UserRole @default(PLAYER)
+  isActive          Boolean  @default(true)
+  isVerified        Boolean  @default(false)
+  
+  // Game stats
+  balance           Decimal  @default(1000) @db.Decimal(10,2)
+  totalWagered      Decimal  @default(0) @db.Decimal(12,2)
+  totalWon          Decimal  @default(0) @db.Decimal(12,2)
+  totalLost         Decimal  @default(0) @db.Decimal(12,2)
+  gamesPlayed       Int      @default(0)
+  biggestWin        Decimal  @default(0) @db.Decimal(10,2)
+  biggestLoss       Decimal  @default(0) @db.Decimal(10,2)
+  currentStreak     Int      @default(0)
+  longestStreak     Int      @default(0)
+  experience        Int      @default(0)
+  level             Int      @default(1)
+  
+  // Referral system
+  referralCode      String?  @unique
+  referredBy        String?  // Referral code used to join
+  referredByUserId  String?  // User ID of referrer
+  referralJoinRewardClaimed Boolean @default(false)
+  
+  // Farming system
+  lastClaimedAt     DateTime?  // Last time user claimed farming points
+  
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastLoginAt       DateTime?
+  
+  // Relations
+  bets              Bet[]
+  transactions      Transaction[]
+  sessions          Session[]
+  dailyLimits       DailyLimit[]
+  playerSettings    PlayerSettings?
+  referredByUser    User?     @relation("ReferralRelation", fields: [referredByUserId], references: [id])
+  referredUsers     User[]    @relation("ReferralRelation")
+  referralsAsReferrer Referral[] @relation("ReferrerRelation")
+  referralAsInvitee   Referral? @relation("InviteeRelation")
+  
+  // Quest system relations
+  userQuests        UserQuest[]
+  questCompletions  QuestCompletion[]
+  
+  adminAuditLogs    AdminAuditLog[]
+  requestedChanges  AdminChangeRequest[] @relation("RequestedChanges")
+  approvedChanges   AdminChangeRequest[] @relation("ApprovedChanges")
+  
+  @@map("users")
+}
+
+// Session management for JWT tokens
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  refreshToken String   @unique
+  expiresAt    DateTime
+  isActive     Boolean  @default(true)
+  ipAddress    String?
+  userAgent    String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+// Game rounds - server-generated for provably fair
+model GameRound {
+  id              String   @id @default(cuid())
+  roundNumber     Int      @unique @default(autoincrement())
+  
+  // Provably fair data
+  serverSeed      String   // Server-generated seed
+  serverSeedHash  String   // Hash of server seed (revealed before round)
+  clientSeed      String?  // Client-provided seed
+  nonce           Int      @default(0)
+  
+  // Game data
+  crashPoint      Decimal  @db.Decimal(8,2) // The actual crash multiplier
+  startTime       DateTime
+  endTime         DateTime?
+  status          GameStatus @default(BETTING)
+  
+  // Relations
+  bets            Bet[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("game_rounds")
+}
+
+// Individual bets placed by users
+model Bet {
+  id              String     @id @default(cuid())
+  userId          String
+  gameRoundId     String
+  
+  // Bet details
+  amount          Decimal    @db.Decimal(10,2)
+  cashoutAt       Decimal?   @db.Decimal(8,2) // Target multiplier for auto-cashout
+  actualCashout   Decimal?   @db.Decimal(8,2) // Actual cashout multiplier
+  payout          Decimal?   @db.Decimal(10,2) // Amount won (if any)
+  
+  // Timestamps
+  placedAt        DateTime   @default(now())
+  cashedOutAt     DateTime?
+  
+  // Status
+  status          BetStatus  @default(ACTIVE)
+  
+  // Relations
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameRound       GameRound  @relation(fields: [gameRoundId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+  
+  @@map("bets")
+}
+
+// Financial transactions for audit trail
+model Transaction {
+  id              String          @id @default(cuid())
+  userId          String
+  betId           String?
+  
+  // Transaction details
+  type            TransactionType
+  amount          Decimal         @db.Decimal(10,2)
+  balanceBefore   Decimal         @db.Decimal(10,2)
+  balanceAfter    Decimal         @db.Decimal(10,2)
+  description     String?
+  
+  // Metadata
+  metadata        Json?           // Additional data (game round, etc.)
+  
+  createdAt       DateTime        @default(now())
+  
+  // Relations
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bet             Bet?            @relation(fields: [betId], references: [id])
+  
+  @@map("transactions")
+}
+
+// System settings and configuration
+model SystemConfig {
+  id              String   @id @default(cuid())
+  key             String   @unique
+  value           String
+  description     String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("system_config")
+}
+
+// Daily limits for responsible gaming
+model DailyLimit {
+  id              String   @id @default(cuid())
+  userId          String
+  date            DateTime @db.Date
+  
+  // Limits
+  maxWager        Decimal? @db.Decimal(10,2)
+  maxLoss         Decimal? @db.Decimal(10,2)
+  maxGames        Int?
+  
+  // Current usage
+  currentWager    Decimal  @default(0) @db.Decimal(10,2)
+  currentLoss     Decimal  @default(0) @db.Decimal(10,2)
+  currentGames    Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, date])
+  @@map("daily_limits")
+}
+
+// Per-player persistent settings
+model PlayerSettings {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+
+  // Gameplay preferences
+  autoCashoutEnabled   Boolean  @default(false)
+  autoCashoutMultiplier Decimal @default(2.0) @db.Decimal(8,2)
+  soundEnabled         Boolean  @default(true)
+
+  // Daily limits (client-side enforcement)
+  dailyLimitsEnabled   Boolean  @default(true)
+  maxDailyWager        Decimal  @default(10000) @db.Decimal(10,2)
+  maxDailyLoss         Decimal  @default(5000) @db.Decimal(10,2)
+  maxGamesPerDay       Int      @default(100)
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("player_settings")
+}
+
+// Enums
+enum GameStatus {
+  BETTING
+  RUNNING
+  CRASHED
+  CANCELLED
+}
+
+enum BetStatus {
+  ACTIVE      // Bet placed, waiting for outcome
+  CASHED_OUT  // User cashed out successfully
+  LOST        // Plane crashed before cashout
+  CANCELLED   // Bet cancelled (rare)
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  BET_PLACED
+  BET_WON
+  BET_LOST
+  BET_REFUND
+  BONUS
+  ADJUSTMENT
+  FARMING_CLAIM
+  QUEST_REWARD
+  REFERRAL_BONUS
+}
+
+// Referral tracking
+model Referral {
+  id                   String   @id @default(cuid())
+  referrerUserId       String
+  inviteeUserId        String   @unique // Each user can only be referred once
+  referralCode         String
+  
+  // Tracking info
+  ip                   String?
+  deviceId             String?
+  
+  // Timestamps
+  createdAt            DateTime @default(now())
+  activationEventAt    DateTime?
+  
+  // Reward status
+  referrerRewardStatus ReferralStatus @default(PENDING)
+  inviteeRewardPaid    Boolean @default(false)
+  notes                String?
+  
+  // Relations
+  referrer             User     @relation("ReferrerRelation", fields: [referrerUserId], references: [id])
+  invitee              User     @relation("InviteeRelation", fields: [inviteeUserId], references: [id])
+  
+  @@map("referrals")
+}
+
+enum UserRole {
+  PLAYER      // Regular player (Telegram users)
+  ADMIN       // Admin user (email/password)
+  MODERATOR   // Moderator (if needed later)
+}
+
+enum ReferralStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+// Admin audit logging
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  adminUserId String
+  action      String   // e.g., 'USER_BALANCE_ADJUST', 'USER_BAN'
+  targetType  String   // 'USER' | 'ROUND' | 'REFERRAL' | 'SYSTEM'
+  targetId    String
+  before      Json?
+  after       Json?
+  notes       String?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  adminUser   User     @relation(fields: [adminUserId], references: [id])
+  
+  @@index([targetType, targetId])
+  @@index([adminUserId])
+  @@map("admin_audit_logs")
+}
+
+// Admin change requests for dual-control
+model AdminChangeRequest {
+  id               String   @id @default(cuid())
+  action           String   // 'USER_BALANCE_ADJUST'
+  payload          Json
+  requestedBy      String
+  approvedBy       String?
+  status           AdminRequestStatus @default(PENDING)
+  resolutionNotes  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  // Relations
+  requestedByUser  User     @relation("RequestedChanges", fields: [requestedBy], references: [id])
+  approvedByUser   User?    @relation("ApprovedChanges", fields: [approvedBy], references: [id])
+  
+  @@map("admin_change_requests")
+}
+
+enum AdminRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+// Quest System Enums
+enum QuestType {
+  DAILY_LOGIN       // 100 pts for opening game daily
+  PLACE_BETS        // 500 pts for placing 5 bets daily  
+  SUCCESSFUL_REFERRAL // 500 pts for referring 1 player daily
+  LUCKY_STREAK      // 300 pts for cashing out 3 times in a row
+  HIGH_ROLLER       // 200 pts for placing bet ≥1000 pts
+  EARLY_BIRD        // 150 pts for playing within first hour of day
+  NIGHT_OWL         // 150 pts for playing after 10 PM
+  RISK_TAKER        // 400 pts for cashing out at ≥5x multiplier
+}
+
+enum QuestStatus {
+  AVAILABLE         // Quest is available to start
+  IN_PROGRESS       // Quest started but not completed
+  COMPLETED         // Quest completed but not claimed
+  CLAIMED           // Quest reward claimed
+  EXPIRED           // Quest expired (for daily quests)
+}
+
+// Quest definitions (static quest data)
+model Quest {
+  id              String    @id @default(cuid())
+  type            QuestType @unique
+  name            String    // "Daily Login Bonus"
+  description     String    // "Open the game to claim your daily reward"
+  icon            String?   // Icon identifier for UI
+  rewardPoints    Int       // Points reward for completing quest
+  targetValue     Int       // Target value (e.g., 5 bets, 3 cashouts)
+  resetPeriod     String    @default("daily") // "daily", "weekly", "monthly"
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0) // For UI ordering
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  userQuests      UserQuest[]
+  
+  @@map("quests")
+}
+
+// User's progress on quests
+model UserQuest {
+  id              String      @id @default(cuid())
+  userId          String
+  questId         String
+  status          QuestStatus @default(AVAILABLE)
+  currentValue    Int         @default(0) // Current progress (e.g., 3/5 bets)
+  completedAt     DateTime?   // When quest was completed
+  claimedAt       DateTime?   // When reward was claimed
+  expiresAt       DateTime?   // When quest expires (for daily quests)
+  resetDate       String      // Date key for quest reset (YYYY-MM-DD)
+  
+  // Metadata for complex quests
+  metadata        Json?       // Store additional data (e.g., streak info)
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest           Quest       @relation(fields: [questId], references: [id])
+  
+  // Constraints
+  @@unique([userId, questId, resetDate]) // One quest per user per reset period
+  @@index([userId, status])
+  @@index([resetDate])
+  @@map("user_quests")
+}
+
+// Quest completion history for analytics
+model QuestCompletion {
+  id              String    @id @default(cuid())
+  userId          String
+  questType       QuestType
+  rewardPoints    Int
+  completedAt     DateTime  @default(now())
+  claimedAt       DateTime?
+  
+  // Relations
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([questType])
+  @@index([completedAt])
+  @@map("quest_completions")
+}
