@@ -36,7 +36,7 @@ class GameService {
     
     // Fred's Fix: Get auth token for authenticated connection
     const token = authService.getToken();
-    const baseWsUrl = import.meta.env.VITE_API_BASE_URL?.replace('https://', 'wss://').replace('/api', '') || 'wss://aviator-game-production.up.railway.app';
+    const baseWsUrl = import.meta.env.VITE_API_BASE_URL?.replace('https://', 'wss://').replace('/api', '') || 'wss://melvek.ru';
     const wsPath = '/ws';  // WebSocket path
     
     // Fred's belt-and-suspenders: both query param AND subprotocol
