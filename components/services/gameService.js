@@ -1,7 +1,7 @@
 // 🎮 Game Service - Connects React frontend to our backend
 // This replaces the local game state with real backend communication
 
-const BACKEND_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'https://aviator-game-production.up.railway.app';
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'https://melvek.ru';
 
 // Import auth service for token management
 import authService from './authService.js';
