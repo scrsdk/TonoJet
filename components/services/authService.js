@@ -1,7 +1,7 @@
 // authService.js
 class AuthService {
   constructor() {
-    this.baseURL = import.meta.env?.VITE_API_BASE_URL || 'https://aviator-game-production.up.railway.app/api';
+    this.baseURL = import.meta.env?.VITE_API_BASE_URL || 'https://melvek.ru/api';
     this.token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
     this.refreshToken = typeof localStorage !== 'undefined' ? localStorage.getItem('refresh_token') : null;
     this.user = typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null;
