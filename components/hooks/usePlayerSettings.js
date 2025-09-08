@@ -20,7 +20,7 @@ export function usePlayerSettings() {
     
     setLoading(true);
     try {
-      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://aviator-game-production.up.railway.app/api';
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://melvek.ru/api';
       const response = await fetch(`${baseURL}/player/settings`, {
         headers: { 
           'Authorization': `Bearer ${token}`
@@ -57,7 +57,7 @@ export function usePlayerSettings() {
     setSaving(true);
     
     try {
-      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://aviator-game-production.up.railway.app/api';
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://melvek.ru/api';
       const response = await fetch(`${baseURL}/player/settings`, {
         method: 'PUT',
         headers: {
