@@ -47,9 +47,9 @@ app.use(helmet({
       // Allow API consumers to call us - specify exact origins
       connectSrc: [
         "'self'", 
-        "wss://aviator-game-production.up.railway.app", 
-        "https://aviator-game-production.up.railway.app",
-        "https://aviator-game-topaz.vercel.app" // NEW: Vercel frontend
+        "wss://tonojet-production.up.railway.app", 
+        "https://tonojet-production.up.railway.app",
+        "https://tonojets.vercel.app" // NEW: Vercel frontend
       ],
       // Disallow framing except Telegram (documented hostnames)
       frameAncestors: ["'self'", "https://*.telegram.org"],
