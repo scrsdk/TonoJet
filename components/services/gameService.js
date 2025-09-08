@@ -1,7 +1,7 @@
 // 🎮 Game Service - Connects React frontend to our backend
 // This replaces the local game state with real backend communication
 
-const BACKEND_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'https://melvek.ru';
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'https://tonojet-production.up.railway.app';
 
 // Import auth service for token management
 import authService from './authService.js';
@@ -36,7 +36,7 @@ class GameService {
     
     // Fred's Fix: Get auth token for authenticated connection
     const token = authService.getToken();
-    const baseWsUrl = import.meta.env.VITE_API_BASE_URL?.replace('https://', 'wss://').replace('/api', '') || 'wss://melvek.ru';
+    const baseWsUrl = import.meta.env.VITE_API_BASE_URL?.replace('https://', 'wss://').replace('/api', '') || 'wss//tonojet-production.up.railway.app;
     const wsPath = '/ws';  // WebSocket path
     
     // Fred's belt-and-suspenders: both query param AND subprotocol
